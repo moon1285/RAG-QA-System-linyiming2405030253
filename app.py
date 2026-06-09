@@ -41,9 +41,13 @@ def main():
         )
         
         if uploaded_files:
-            for file in uploaded_files:
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            for idx, file in enumerate(uploaded_files):
                 if file.name not in st.session_state.uploaded_files:
-                    st.session_state.uploaded_files.append(file.name)
+                    status_text.text(f"正在处理: {file.name}")
+                    
                     with tempfile.TemporaryDirectory() as temp_dir:
                         file_path = os.path.join(temp_dir, file.name)
                         with open(file_path, "wb") as f:
@@ -66,23 +70,40 @@ def main():
                                 metadatas=metadatas,
                                 ids=ids
                             )
+                    
+                    st.session_state.uploaded_files.append(file.name)
+                    progress_bar.progress((idx + 1) / len(uploaded_files))
             
+            status_text.text("处理完成！")
             st.success(f"已成功上传 {len(uploaded_files)} 个文件")
         
         st.subheader("📊 知识库状态")
         doc_count = st.session_state.kb.get_document_count()
         st.metric(label="文本块数量", value=doc_count)
         
+        if st.session_state.uploaded_files:
+            st.write("已上传的文档:")
+            for file in st.session_state.uploaded_files:
+                st.write(f"- {file}")
+        
+        st.subheader("⚙️ 操作")
+        
         if st.button("📥 加载默认文档"):
-            st.session_state.kb.add_documents("./docs")
-            st.success("默认文档已加载")
+            with st.spinner("正在加载默认文档..."):
+                st.session_state.kb.add_documents("./docs")
+                default_docs = os.listdir("./docs")
+                for doc in default_docs:
+                    if doc not in st.session_state.uploaded_files:
+                        st.session_state.uploaded_files.append(doc)
+                st.success("默认文档已加载")
         
         if st.button("🗑️ 清空知识库"):
-            st.session_state.kb.clear_collection()
-            st.session_state.chat_history = []
-            st.session_state.uploaded_files = []
-            trigger_refresh()
-            st.success("知识库已清空")
+            with st.spinner("正在清空知识库..."):
+                st.session_state.kb.clear_collection()
+                st.session_state.chat_history = []
+                st.session_state.uploaded_files = []
+                trigger_refresh()
+                st.success("知识库已清空")
     
     with col2:
         st.subheader("💬 问答交互")
@@ -94,14 +115,17 @@ def main():
         user_input = st.text_input("请输入您的问题:", key="user_input")
         
         if st.button("提问") and user_input.strip():
-            with st.spinner("正在思考..."):
+            with st.spinner("正在检索和生成答案..."):
                 answer = st.session_state.rag.answer(user_input, st.session_state.chat_history)
                 
                 st.session_state.chat_history.append({"role": "user", "content": user_input})
                 st.session_state.chat_history.append({"role": "assistant", "content": answer})
+                
+                st.rerun()
         
         if st.button("清空对话"):
             st.session_state.chat_history = []
+            st.rerun()
 
 if __name__ == "__main__":
     main()
