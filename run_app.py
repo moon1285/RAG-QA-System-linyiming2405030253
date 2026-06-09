@@ -1,10 +1,9 @@
 import sys
 import os
 
-user_site = os.path.expanduser("~\\AppData\\Roaming\\Python\\Python314\\site-packages")
-sys.path.insert(0, user_site)
+os.environ['STREAMLIT_BROWSER_GATHER_USAGE_STATS'] = 'false'
 
-import streamlit.cli
+from streamlit.web.cli import main
 if __name__ == "__main__":
     sys.argv = ["streamlit", "run", "app.py"]
-    streamlit.cli.main()
+    sys.exit(main())
